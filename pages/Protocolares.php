@@ -1,77 +1,53 @@
 <?php
 session_start();
-include("../conexion.php"); // Incluye tu archivo de conexión a MySQL
+include("../conexion.php"); // Incluye la conexión a la base de datos
 
 
-// Definir constantes para la API de OneDrive
-define('CLIENT_ID', 'TU_CLIENT_ID');
-define('CLIENT_SECRET', 'TU_CLIENT_SECRET');
-define('REDIRECT_URI', 'TU_REDIRECT_URI');
-define('SCOPE', 'Files.ReadWrite');
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file'])) {
+    // Obtener detalles del archivo
+    $fileName = $_FILES['file']['name'];
+    $fileType = $_FILES['file']['type'];
+    $fileTempPath = $_FILES['file']['tmp_name'];
 
-$accessToken = ''; // Variable para el token de acceso
+    // Verificar si el archivo se subió correctamente
+    if (is_uploaded_file($fileTempPath)) {
+        // Leer el contenido del archivo en binario
+        $fileContent = file_get_contents($fileTempPath);
+        
+        if ($fileContent === false) {
+            echo "<div class='alert alert-danger'>Error al leer el contenido del archivo.</div>";
+            exit;
+        }
 
-// Manejar la respuesta del inicio de sesión de OneDrive
-if (isset($_GET['code'])) {
-    $code = $_GET['code'];
+        // Preparar la consulta para insertar el archivo en la base de datos
+        $sql = "INSERT INTO documentos (nombre_archivo, tipo_archivo, contenido) VALUES (?, ?, ?)";
+        $stmt = $conn->prepare($sql);
 
-    // Solicitar el token de acceso
-    $url = 'https://login.microsoftonline.com/common/oauth2/v2.0/token';
-    $data = [
-        'client_id' => CLIENT_ID,
-        'client_secret' => CLIENT_SECRET,
-        'code' => $code,
-        'redirect_uri' => REDIRECT_URI,
-        'grant_type' => 'authorization_code',
-    ];
+        if ($stmt) {
+            // Enlace de parámetros (usamos 'ssi' para 'string, string, binary')
+            $stmt->bind_param("ssb", $fileName, $fileType, $fileContent);
 
-    $options = [
-        'http' => [
-            'header' => "Content-type: application/x-www-form-urlencoded\r\n",
-            'method' => 'POST',
-            'content' => http_build_query($data),
-        ],
-    ];
+            // Ejecutar la consulta
+            if ($stmt->execute()) {
+                echo "<div class='alert alert-success'>Archivo subido correctamente.</div>";
+            } else {
+                echo "<div class='alert alert-danger'>Error al ejecutar la consulta: " . $stmt->error . "</div>";
+            }
 
-    $context = stream_context_create($options);
-    $response = file_get_contents($url, false, $context);
-    $tokenData = json_decode($response);
-    $accessToken = $tokenData->access_token;
-}
-
-// Manejar la subida de archivos
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_FILES['documento'])) {
-    $filePath = $_FILES['documento']['tmp_name'];
-    $fileName = $_FILES['documento']['name'];
-
-    // Subir archivo a OneDrive
-    $uploadUrl = 'https://graph.microsoft.com/v1.0/me/drive/root:/' . $fileName . ':/content';
-    $options = [
-        'http' => [
-            'header' => "Authorization: Bearer $accessToken\r\n" .
-                        "Content-Type: application/octet-stream\r\n",
-            'method' => 'PUT',
-            'content' => file_get_contents($filePath),
-        ],
-    ];
-
-    $context = stream_context_create($options);
-    $result = file_get_contents($uploadUrl, false, $context);
-
-    if ($result) {
-        // Inserción en la base de datos
-        $rutaArchivo = 'https://onedrive.live.com/?cid=YOUR_CID&resid=' . urlencode($fileName); // Reemplaza con la URL de acceso real
-        $stmt = $conn->prepare("INSERT INTO documentos (nombre_archivo, ruta_archivo) VALUES (?, ?)");
-        $stmt->bind_param("ss", $fileName, $rutaArchivo);
-        $stmt->execute();
-        $stmt->close();
-
-        echo "<div class='alert alert-success'>El archivo se ha subido correctamente y registrado en la base de datos.</div>";
+            $stmt->close();
+        } else {
+            echo "<div class='alert alert-danger'>Error en la preparación de la consulta: " . $conn->error . "</div>";
+        }
     } else {
-        echo "<div class='alert alert-danger'>Error al subir el archivo.</div>";
+        echo "<div class='alert alert-danger'>Error en la subida del archivo. Intente nuevamente.</div>";
     }
+    $conn->close();
 }
 ?>
+
+
+
+
 
 <!DOCTYPE html>
 <html lang="es">
@@ -90,17 +66,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_FILES['documento'])) {
     <aside class="sidebar">
         <h3>Menú</h3>
         <ul class="d-flex flex-column">
-            <li><a href="dashboard.php">Inicio</a></li>
-            <li><a href="pages/Protocolares.php">Protocolares</a></li>
+            <li><a href="../dashboard.php">Inicio</a></li>
+            <li><a href="Protocolares.php">Protocolares</a></li>
             <li><a href="pages/ExtraProtocolares.php">ExtraProtocolares</a></li>
             <li><a href="#">Reportes</a></li>
-            <li><a href="#">Cerrar sesión</a></li>
+            <li><a href="logout.php">Cerrar sesión</a></li>
         </ul>
     </aside>
 
     <main class="content">
         <h2>Cargar Documentos Protocolares</h2>
-        <form action="" method="post" enctype="multipart/form-data">
+        <form action="Protocolares.php" method="post" enctype="multipart/form-data">
             <div class="form-group">
                 <label for="documento">Seleccionar documento:</label>
                 <input type="file" class="form-control" name="documento" required>
