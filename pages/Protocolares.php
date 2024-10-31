@@ -2,12 +2,11 @@
 session_start();
 include("../conexion.php"); // Incluye la conexión a la base de datos
 
-
-if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file'])) {
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['documento'])) {
     // Obtener detalles del archivo
-    $fileName = $_FILES['file']['name'];
-    $fileType = $_FILES['file']['type'];
-    $fileTempPath = $_FILES['file']['tmp_name'];
+    $fileName = $_FILES['documento']['name'];
+    $fileType = $_FILES['documento']['type'];
+    $fileTempPath = $_FILES['documento']['tmp_name'];
 
     // Verificar si el archivo se subió correctamente
     if (is_uploaded_file($fileTempPath)) {
@@ -24,7 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file'])) {
         $stmt = $conn->prepare($sql);
 
         if ($stmt) {
-            // Enlace de parámetros (usamos 'ssi' para 'string, string, binary')
+            // Enlace de parámetros (usamos 'ssb' para 'string, string, binary')
             $stmt->bind_param("ssb", $fileName, $fileType, $fileContent);
 
             // Ejecutar la consulta
@@ -45,10 +44,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file'])) {
 }
 ?>
 
-
-
-
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -68,7 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['file'])) {
         <ul class="d-flex flex-column">
             <li><a href="../dashboard.php">Inicio</a></li>
             <li><a href="Protocolares.php">Protocolares</a></li>
-            <li><a href="pages/ExtraProtocolares.php">ExtraProtocolares</a></li>
+            <li><a href="ExtraProtocolares.php">ExtraProtocolares</a></li>
             <li><a href="#">Reportes</a></li>
             <li><a href="logout.php">Cerrar sesión</a></li>
         </ul>
